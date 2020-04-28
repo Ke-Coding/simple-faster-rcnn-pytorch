@@ -203,7 +203,7 @@ class FasterRCNNTrainer(nn.Module):
 
         if save_path is None:
             timestr = time.strftime('%m%d%H%M')
-            save_path = 'exp_ckpt/fasterrcnn_%s' % timestr
+            save_path = f'exp_ckpt/fasterrcnn_{timestr}'
             for k_, v_ in kwargs.items():
                 save_path += '_%s' % v_
 

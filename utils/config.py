@@ -31,6 +31,7 @@ class Config:
     env = 'faster-rcnn'  # visdom env
     port = 8097
     plt_freq = 40  # vis every N iter
+    prt_freq = 40  # vis every N iter
     
     # preset
     data = 'voc'

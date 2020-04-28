@@ -1,6 +1,9 @@
 import os
+import time
 os.chdir('/content/drive/My Drive/lq_det_hyper/lq_det')
 
+TIME_STR = time.strftime('%Y-%m-%d-%H:%M:%S')
+EXP_DIR = os.path.join(os.getcwd(), 'exp', TIME_STR)
 
 %reload_ext autoreload
 %autoreload 2
@@ -16,10 +19,10 @@ import cupy as cp
 import os
 
 # import ipdb
-import matplotlib
 from tqdm import tqdm
 
 import torch as tc
+import datetime
 from utils.config import Config
 from data.dataset import TrainDataset, ValDataset, inverse_normalize
 from model import FasterRCNNVGG16
@@ -28,6 +31,7 @@ from trainer import FasterRCNNTrainer
 from utils import array_tool as at
 from utils.vis_tool import visdom_bbox
 from utils.eval_tool import eval_detection_voc
+import matplotlib
 %matplotlib inline
 
 # fix for ulimit
@@ -44,7 +48,7 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
 def eval(dataloader, faster_rcnn):
     pred_bboxes, pred_labels, pred_scores = list(), list(), list()
     gt_bboxes, gt_labels, gt_difficults = list(), list(), list()
-    for ii, (imgs, sizes, gt_bboxes_, gt_labels_, gt_difficults_) in tqdm(enumerate(dataloader)):
+    for it, (imgs, sizes, gt_bboxes_, gt_labels_, gt_difficults_) in enumerate(dataloader):
         sizes = [sizes[0][0].item(), sizes[1][0].item()]
         pred_bboxes_, pred_labels_, pred_scores_ = faster_rcnn.predict(imgs, [sizes])
         gt_bboxes.extend(gt_bboxes_.numpy().tolist())
@@ -97,16 +101,43 @@ def train(**kwargs):
     train_losses = []
     train_lrs = []
     val_maps = []
+    
+    log_file = open(os.path.join(EXP_DIR, 'log.txt'), 'w')
+
     # rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, total_loss
+    time_passed = 0
+    last_t = time.time()
     for epoch in range(Config.epoch):
         trainer.reset_meters()
-        for ii, (img, bbox_, label_, scale) in tqdm(enumerate(train_loader)):
+        tot_it = len(train_loader)
+        for it, (img, bbox_, label_, scale) in enumerate(train_loader):
             scale = at.toscalar(scale)
             img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
             # (rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, total_loss)
-            train_losses.append(trainer.train_step(img, bbox, label, scale))
+            train_loss = trainer.train_step(img, bbox, label, scale)
+            train_losses.append(train_loss)
             
-            # if (ii + 1) % Config.plt_freq == 0:
+            # rpn_loc_loss
+            # rpn_cls_loss
+            # roi_loc_loss
+            # roi_cls_loss
+            if it % Config.prt_freq == 0 or it == tot_it - 1:
+                avg_speed = time_passed / it if it != 0 else 0
+                remain_secs = (tot_it - it - 1) * avg_speed + tot_it * (Config.epoch - epoch - 1) * avg_speed
+                remain_time = datetime.timedelta(seconds=round(remain_secs))
+                finish_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() + remain_secs))
+                log_str = (
+                    f'ep[{epoch}/{Config.epoch}], it[{it + 1}/{tot_it}]:'
+                    f' loc0[{train_loss.rpn_loc_loss:.4g}],'
+                    f' cls0[{train_loss.rpn_cls_loss:.4g}],'
+                    f' loc1[{train_loss.roi_loc_loss:.4g}],'
+                    f' cls1[{train_loss.roi_cls_loss:.4g}],'
+                    f' eta[{remain_time}] ({finish_time})'
+                )
+                print(log_str)
+                print(log_str, file=log_file)
+            
+            # if (it + 1) % Config.plt_freq == 0:
             #     # if os.path.exists(Config.debug_file):
             #     #     ipdb.set_trace()
             #
@@ -148,17 +179,23 @@ def train(**kwargs):
         lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']
         train_lrs.append(lr_)
         val_maps.append(eval_result['map'])
-        log_info = f"[ep{epoch}] best eval map:{best_map:.3g}, lr:{lr_:.4g}, eval map:{eval_result['map']:.3g}, avg tr loss:{trainer.get_meter_data()}"
+        log_info = f"\n ==> [ep{epoch}] best eval map:{best_map:.3g}, lr:{lr_:.4g}, eval map:{eval_result['map']:.3g}, avg tr loss:{trainer.get_meter_data()}\n"
         if trainer.vis:
             trainer.vis.log(log_info)
         else:
             print(log_info)
+            print(log_info, file=log_file)
+
+        time_passed += last_t - time.time()
+        last_t = time.time()
 
     # rpn_loc_loss
     # rpn_cls_loss
     # roi_loc_loss
     # roi_cls_loss
     # total_loss
+
+    log_file.close()
     
     total_iters = len(train_losses)
     plt.figure()
