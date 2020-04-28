@@ -126,7 +126,7 @@ def vis_bbox(img, bboxes, labels=None, score=None, ax=None):
         else:
             sc = 0
 
-        print(f'==> bbox@{i}: {bb}, score={100*sc:.2f}%%, label={label}({label_idx})')
+        print(f'==> bbox@{i}: {bb}, score={100*sc:.2f}%, label={label}({label_idx})')
         
         if len(caption) > 0:
             ax.text(bb[1], bb[0],

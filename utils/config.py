@@ -7,11 +7,15 @@ from pprint import pprint
 
 class Config:
     # data
-    voc_data_dir = '/home/cy/.chainer/dataset/pfnet/chainercv/voc/VOCdevkit/VOC2007/'
+    # voc_data_dir = '/home/cy/.chainer/dataset/pfnet/chainercv/voc/VOCdevkit/VOC2007/'
+    det_dataset_dir = '/content/drive/My Drive/datasets/det/lq_car_det'
+    num_classes_except_bg = 1
+    num_classes_include_bg = num_classes_except_bg + 1
     min_size = 600  # image resize
     max_size = 1000  # image resize
-    num_workers = 8
-    test_num_workers = 8
+    batch_size = 1
+    num_workers = 2
+    test_num_workers = 2
     
     # sigma for l1_smooth_loss
     rpn_sigma = 3.
@@ -26,22 +30,24 @@ class Config:
     # visualization
     env = 'faster-rcnn'  # visdom env
     port = 8097
-    plot_every = 40  # vis every N iter
+    plt_freq = 40  # vis every N iter
     
     # preset
     data = 'voc'
     pretrained_model = 'vgg16'
     
     # training
-    epoch = 14
+    epoch = 21
+    step_epochs = [8, 15]
+    step_decays = [0.1, 0.125, 0.15]
+    sgd_nestrov = True
+    sgd_momentum = 0.8
     
     use_adam = False  # Use Adam optimizer
     use_chainer = False  # try match everything as chainer
     use_drop = False  # use dropout in RoIHead
     # debug
     debug_file = '/tmp/debugf'
-    
-    test_num = 10000
     
     # ckpts
     frc_ckpt_path = None

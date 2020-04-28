@@ -60,7 +60,7 @@ class FasterRCNNTrainer(nn.Module):
 
         # indicators for training status
         self.rpn_cm = ConfusionMeter(2)
-        self.roi_cm = ConfusionMeter(21)
+        self.roi_cm = ConfusionMeter(Config.num_classes_include_bg)
         self.meters = {k: AverageValueMeter() for k in LossTuple._fields}  # average loss
 
     def forward(self, imgs, bboxes, labels, scale):
@@ -160,18 +160,24 @@ class FasterRCNNTrainer(nn.Module):
 
         self.roi_cm.add(at.totensor(roi_score, False), gt_roi_label.data.long())
 
-        losses = [rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss]
-        losses = losses + [sum(losses)]
-
-        return LossTuple(*losses)
+        total_loss = rpn_loc_loss + rpn_cls_loss + roi_loc_loss + roi_cls_loss
+        
+        detached_losses = LossTuple(
+            rpn_loc_loss.item(),
+            rpn_cls_loss.item(),
+            roi_loc_loss.item(),
+            roi_cls_loss.item(),
+            total_loss.item()
+        )
+        return total_loss, detached_losses
 
     def train_step(self, imgs, bboxes, labels, scale):
         self.optimizer.zero_grad()
-        losses = self.forward(imgs, bboxes, labels, scale)
-        losses.total_loss.backward()
+        total_loss, detached_losses = self.forward(imgs, bboxes, labels, scale)
+        total_loss.backward()
         self.optimizer.step()
-        self.update_meters(losses)
-        return losses
+        self.update_meters(detached_losses)
+        return detached_losses
 
     def save(self, save_optimizer=False, save_path=None, **kwargs):
         """serialize models include optimizer and other info
@@ -197,7 +203,7 @@ class FasterRCNNTrainer(nn.Module):
 
         if save_path is None:
             timestr = time.strftime('%m%d%H%M')
-            save_path = 'checkpoints/fasterrcnn_%s' % timestr
+            save_path = 'exp_ckpt/fasterrcnn_%s' % timestr
             for k_, v_ in kwargs.items():
                 save_path += '_%s' % v_
 
@@ -210,7 +216,7 @@ class FasterRCNNTrainer(nn.Module):
             self.vis.save([self.vis.env])
         return save_path
 
-    def load(self, path, load_optimizer=True, parse_opt=False, ):
+    def load(self, path, load_optimizer=True, parse_opt=False):
         state_dict = t.load(path)
         if 'model' in state_dict:
             self.faster_rcnn.load_state_dict(state_dict['model'])
@@ -224,7 +230,7 @@ class FasterRCNNTrainer(nn.Module):
         return self
 
     def update_meters(self, losses):
-        loss_d = {k: at.scalar(v) for k, v in losses._asdict().items()}
+        loss_d = {k: at.toscalar(v) for k, v in losses._asdict().items()}
         for key, meter in self.meters.items():
             meter.add(loss_d[key])
 

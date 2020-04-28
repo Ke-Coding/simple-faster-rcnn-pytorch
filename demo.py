@@ -5,7 +5,7 @@ os.chdir('/content/drive/My Drive/lq_det_hyper/lq_det')
 %reload_ext autoreload
 %autoreload 2
 import os
-import torch as t
+import torch as tc
 from utils.config import Config
 from model import FasterRCNNVGG16
 from trainer import FasterRCNNTrainer
@@ -18,11 +18,11 @@ from utils import array_tool as at
 
 img_name = 'demo.jpg'
 raw_img = read_image(f'/content/drive/My Drive/lq_det_hyper/lq_det/misc/{img_name}')
-raw_img = t.from_numpy(raw_img).unsqueeze(dim=0)
+raw_img = tc.from_numpy(raw_img).unsqueeze(dim=0)
 
 
 
-faster_rcnn = FasterRCNNVGG16()
+faster_rcnn = FasterRCNNVGG16(n_fg_class=Config.num_classes_except_bg)
 trainer = FasterRCNNTrainer(faster_rcnn, using_visdom=False).cuda()
 
 

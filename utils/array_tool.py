@@ -1,29 +1,34 @@
 """
 tools to convert specified type
 """
-import torch as t
+import torch as tc
 import numpy as np
 
 
 def tonumpy(data):
     if isinstance(data, np.ndarray):
         return data
-    if isinstance(data, t.Tensor):
+    if isinstance(data, tc.Tensor):
         return data.detach().cpu().numpy()
+    return np.array(data)
 
 
 def totensor(data, cuda=True):
     if isinstance(data, np.ndarray):
-        tensor = t.from_numpy(data)
-    if isinstance(data, t.Tensor):
+        tensor = tc.from_numpy(data)
+    elif isinstance(data, tc.Tensor):
         tensor = data.detach()
+    else:
+        tensor = tc.tensor(data)
+    
     if cuda:
         tensor = tensor.cuda()
     return tensor
 
 
-def scalar(data):
+def toscalar(data):
     if isinstance(data, np.ndarray):
         return data.reshape(1)[0]
-    if isinstance(data, t.Tensor):
+    if isinstance(data, tc.Tensor):
         return data.item()
+    return data
