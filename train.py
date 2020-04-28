@@ -1,4 +1,12 @@
-from __future__ import absolute_import
+import os
+os.chdir('/content/drive/My Drive/lq_det_hyper/lq_det')
+
+
+%reload_ext autoreload
+%autoreload 2
+
+
+# from __future__ import absolute_import
 # though cupy is not used but without this line, it raise errors...
 import cupy as cp
 import os
@@ -16,10 +24,12 @@ from trainer import FasterRCNNTrainer
 from utils import array_tool as at
 from utils.vis_tool import visdom_bbox
 from utils.eval_tool import eval_detection_voc
+%matplotlib inline
 
 # fix for ulimit
 # https://github.com/pytorch/pytorch/issues/973#issuecomment-346405667
 import resource
+
 
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
@@ -134,7 +144,8 @@ def train(**kwargs):
             print(log_info)
 
 
-if __name__ == '__main__':
-    train(
-    
-    )
+train()
+
+
+import matplotlib.pyplot as plt
+plt.show()

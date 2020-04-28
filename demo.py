@@ -4,7 +4,6 @@ os.chdir('/content/drive/My Drive/lq_det_hyper/lq_det')
 
 %reload_ext autoreload
 %autoreload 2
-import os
 import torch as tc
 from utils.config import Config
 from model import FasterRCNNVGG16
