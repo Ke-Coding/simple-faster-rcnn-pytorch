@@ -50,7 +50,7 @@ def vis_image(img, ax=None):
         Returns the Axes object with the plot for further tweaking.
 
     """
-
+    
     if ax is None:
         fig = plot.figure()
         ax = fig.add_subplot(1, 1, 1)
@@ -60,25 +60,25 @@ def vis_image(img, ax=None):
     return ax
 
 
-def vis_bbox(img, bbox, label=None, score=None, ax=None):
+def vis_bbox(img, bboxes, labels=None, score=None, ax=None):
     """Visualize bounding boxes inside image.
 
     Args:
         img (~numpy.ndarray): An array of shape :math:`(3, height, width)`.
             This is in RGB format and the range of its value is
             :math:`[0, 255]`.
-        bbox (~numpy.ndarray): An array of shape :math:`(R, 4)`, where
+        bboxes (~numpy.ndarray): An array of shape :math:`(R, 4)`, where
             :math:`R` is the number of bounding boxes in the image.
             Each element is organized
             by :math:`(y_{min}, x_{min}, y_{max}, x_{max})` in the second axis.
-        label (~numpy.ndarray): An integer array of shape :math:`(R,)`.
-            The values correspond to id for label names stored in
+        labels (~numpy.ndarray): An integer array of shape :math:`(R,)`.
+            The values correspond to id for labels names stored in
             :obj:`label_names`. This is optional.
         score (~numpy.ndarray): A float array of shape :math:`(R,)`.
              Each value indicates how confident the prediction is.
              This is optional.
         label_names (iterable of strings): Name of labels ordered according
-            to label ids. If this is :obj:`None`, labels will be skipped.
+            to labels ids. If this is :obj:`None`, labels will be skipped.
         ax (matplotlib.axes.Axis): The visualization is displayed on this
             axis. If this is :obj:`None` (default), a new axis is created.
 
@@ -87,39 +87,47 @@ def vis_bbox(img, bbox, label=None, score=None, ax=None):
         Returns the Axes object with the plot for further tweaking.
 
     """
-
+    
+    print(f'img.shape={img.shape}, len(bboxes)={len(bboxes)}, labels={labels}, scores={score}')
     label_names = list(VOC_BBOX_LABEL_NAMES) + ['bg']
     # add for index `-1`
-    if label is not None and not len(bbox) == len(label):
-        raise ValueError('The length of label must be same as that of bbox')
-    if score is not None and not len(bbox) == len(score):
-        raise ValueError('The length of score must be same as that of bbox')
-
+    if labels is not None and not len(bboxes) == len(labels):
+        raise ValueError('The length of labels must be same as that of bboxes')
+    if score is not None and not len(bboxes) == len(score):
+        raise ValueError('The length of score must be same as that of bboxes')
+    
     # Returns newly instantiated matplotlib.axes.Axes object if ax is None
     ax = vis_image(img, ax=ax)
-
+    
     # If there is no bounding box to display, visualize the image and exit.
-    if len(bbox) == 0:
+    if len(bboxes) == 0:
         return ax
-
-    for i, bb in enumerate(bbox):
+    
+    for i, bb in enumerate(bboxes):
         xy = (bb[1], bb[0])
         height = bb[2] - bb[0]
         width = bb[3] - bb[1]
         ax.add_patch(plot.Rectangle(
             xy, width, height, fill=False, edgecolor='red', linewidth=2))
-
+        
         caption = list()
-
-        if label is not None and label_names is not None:
-            lb = label[i]
-            if not (-1 <= lb < len(label_names)):  # modfy here to add backgroud
+        
+        if labels is not None and label_names is not None:
+            label_idx = labels[i]
+            if not (-1 <= label_idx < len(label_names)):  # modfy here to add backgroud
                 raise ValueError('No corresponding name is given')
-            caption.append(label_names[lb])
+            label = label_names[label_idx]
+            caption.append(label)
+        else:
+            label = "UNKNOWN"
         if score is not None:
             sc = score[i]
             caption.append('{:.2f}'.format(sc))
+        else:
+            sc = 0
 
+        print(f'==> bbox@{i}: {bb}, score={100*sc:.2f}%%, label={label}({label_idx})')
+        
         if len(caption) > 0:
             ax.text(bb[1], bb[0],
                     ': '.join(caption),
@@ -138,12 +146,12 @@ def fig2data(fig):
     """
     # draw the renderer
     fig.canvas.draw()
-
+    
     # Get the RGBA buffer from the figure
     w, h = fig.canvas.get_width_height()
     buf = np.fromstring(fig.canvas.tostring_argb(), dtype=np.uint8)
     buf.shape = (w, h, 4)
-
+    
     # canvas.tostring_argb give pixmap in ARGB mode. Roll the ALPHA channel to have it in RGBA mode
     buf = np.roll(buf, 3, axis=2)
     return buf.reshape(h, w, 4)
@@ -173,22 +181,22 @@ class Visualizer(object):
     self.line, self.scater,self._send,etc.
     due to the implementation of `__getattr__`
     """
-
+    
     def __init__(self, env='default', **kwargs):
         self.vis = visdom.Visdom(env=env, use_incoming_socket=False, **kwargs)
         self._vis_kw = kwargs
-
+        
         # e.g.('loss',23) the 23th value of loss
         self.index = {}
         self.log_text = ''
-
+    
     def reinit(self, env='default', **kwargs):
         """
         change the config of visdom
         """
         self.vis = visdom.Visdom(env=env, **kwargs)
         return self
-
+    
     def plot_many(self, d):
         """
         plot multi values
@@ -197,11 +205,11 @@ class Visualizer(object):
         for k, v in d.items():
             if v is not None:
                 self.plot(k, v)
-
+    
     def img_many(self, d):
         for k, v in d.items():
             self.img(k, v)
-
+    
     def plot(self, name, y, **kwargs):
         """
         self.plot('loss',1.00)
@@ -214,7 +222,7 @@ class Visualizer(object):
                       **kwargs
                       )
         self.index[name] = x + 1
-
+    
     def img(self, name, img_, **kwargs):
         """
         self.img('input_img',t.Tensor(64,64))
@@ -228,7 +236,7 @@ class Visualizer(object):
                         opts=dict(title=name),
                         **kwargs
                         )
-
+    
     def log(self, info, win='log_text'):
         """
         self.log({'loss':1,'lr':0.0001})
@@ -237,10 +245,10 @@ class Visualizer(object):
             time=time.strftime('%m%d_%H%M%S'), \
             info=info))
         self.vis.text(self.log_text, win)
-
+    
     def __getattr__(self, name):
         return getattr(self.vis, name)
-
+    
     def state_dict(self):
         return {
             'index': self.index,
@@ -248,7 +256,7 @@ class Visualizer(object):
             'log_text': self.log_text,
             'env': self.vis.env
         }
-
+    
     def load_state_dict(self, d):
         self.vis = visdom.Visdom(env=d.get('env', self.vis.env), **(self.d.get('vis_kw')))
         self.log_text = d.get('log_text', '')
