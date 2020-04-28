@@ -286,10 +286,10 @@ class FasterRCNN(nn.Module):
         if Config.use_adam:
             self.optimizer = t.optim.Adam(params)
         else:
-            self.optimizer = t.optim.SGD(params, momentum=0.9)
+            self.optimizer = t.optim.SGD(params, momentum=Config.sgd_momentum, nesterov=Config.sgd_nestrov)
         return self.optimizer
     
-    def scale_lr(self, decay=0.1):
+    def scale_lr(self, decay):
         for param_group in self.optimizer.param_groups:
             param_group['lr'] *= decay
         return self.optimizer

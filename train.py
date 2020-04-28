@@ -52,14 +52,14 @@ def train(**kwargs):
     
     train_dataset = TrainDataset(Config)
     train_loader = data_.DataLoader(train_dataset,
-                                  batch_size=1,
+                                  batch_size=Config.batch_size,
                                   shuffle=True,
                                   # pin_memory=True,
                                   num_workers=Config.num_workers)
     print('train data loaded')
     val_dataset = ValDataset(Config)
     val_loader = data_.DataLoader(val_dataset,
-                                       batch_size=1,
+                                       batch_size=Config.batch_size,
                                        num_workers=Config.test_num_workers,
                                        shuffle=False,
                                        pin_memory=True
