@@ -41,9 +41,9 @@ class Config:
     pretrained_model = 'vgg16'
     
     # training
-    epoch = 9
-    step_epochs = [3, 6]
-    step_decays = [0.1, 0.125, 0.15]
+    epoch = 10
+    step_epochs = [3, 6]    # 0123 456 789
+    step_decays = [0.1, 0.15, 0.2]
     sgd_nestrov = True
     sgd_momentum = 0.9
     
