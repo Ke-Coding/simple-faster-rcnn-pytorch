@@ -5,6 +5,10 @@ os.chdir('/content/drive/My Drive/lq_det_hyper/lq_det')
 %reload_ext autoreload
 %autoreload 2
 
+import warnings
+warnings.filterwarnings("ignore")   # no warn for torch1.3 about non-static forward
+
+
 
 # from __future__ import absolute_import
 # though cupy is not used but without this line, it raise errors...
@@ -61,19 +65,22 @@ def train(**kwargs):
     Config._parse(kwargs)
     
     train_dataset = TrainDataset(Config)
-    train_loader = data_.DataLoader(train_dataset,
-                                  batch_size=Config.batch_size,
-                                  shuffle=True,
-                                  # pin_memory=True,
-                                  num_workers=Config.num_workers)
+    train_loader = data_.DataLoader(
+        train_dataset,
+        batch_size=Config.batch_size,
+        shuffle=True,
+        # pin_memory=True,
+        num_workers=Config.num_workers
+    )
     print('train data loaded')
     val_dataset = ValDataset(Config)
-    val_loader = data_.DataLoader(val_dataset,
-                                       batch_size=Config.batch_size,
-                                       num_workers=Config.test_num_workers,
-                                       shuffle=False,
-                                       pin_memory=True
-                                       )
+    val_loader = data_.DataLoader(
+        val_dataset,
+        batch_size=Config.batch_size,
+        num_workers=Config.test_num_workers,
+        shuffle=False,
+        pin_memory=True
+    )
     print('val data loaded')
     
     faster_rcnn = FasterRCNNVGG16(n_fg_class=Config.num_classes_except_bg)
