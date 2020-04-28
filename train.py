@@ -4,6 +4,8 @@ os.chdir('/content/drive/My Drive/lq_det_hyper/lq_det')
 
 TIME_STR = time.strftime('%Y-%m-%d-%H:%M:%S')
 EXP_DIR = os.path.join(os.getcwd(), 'exp', TIME_STR)
+if not os.path.exists(EXP_DIR):
+    os.makedirs(EXP_DIR)
 
 %reload_ext autoreload
 %autoreload 2
@@ -167,7 +169,7 @@ def train(**kwargs):
         eval_result = eval(val_loader, faster_rcnn)
         if eval_result['map'] > best_map:
             best_map = eval_result['map']
-            best_path = trainer.save(best_map=best_map)
+            best_path = trainer.save(best_mAP=best_map)
         if epoch in Config.step_epochs:
             # trainer.load(best_path)
             lr_decay = Config.step_decays[Config.step_epochs.index(epoch)]

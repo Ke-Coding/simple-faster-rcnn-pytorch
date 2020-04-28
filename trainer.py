@@ -202,19 +202,17 @@ class FasterRCNNTrainer(nn.Module):
             save_dict['optimizer'] = self.optimizer.state_dict()
 
         if save_path is None:
-            timestr = time.strftime('%m%d%H%M')
-            save_path = f'exp_ckpt/fasterrcnn_{timestr}'
-            for k_, v_ in kwargs.items():
-                save_path += '_%s' % v_
+            assert 'save path is None!'
 
-        save_dir = os.path.dirname(save_path)
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
-        t.save(save_dict, save_path)
+        file_path = os.path.join(save_path, 'faster-rcnn')
+        for k_, v_ in kwargs.items():
+            file_path += '_%s' % v_
+        t.save(save_dict, file_path)
+        
         if self.vis:
             self.vis.save([self.vis.env])
-        return save_path
+        
+        return file_path
 
     def load(self, path, load_optimizer=True, parse_opt=False):
         state_dict = t.load(path)
