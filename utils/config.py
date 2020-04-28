@@ -25,24 +25,24 @@ class Config:
     # 0.0005 in origin paper but 0.0001 in tf-faster-rcnn
     weight_decay = 0.0005
     # lr_decay = 0.1  # 1e-3 -> 1e-4
-    lr = 1e-3
+    lr = 7.5e-4
     
     # visualization
     env = 'faster-rcnn'  # visdom env
     port = 8097
     plt_freq = 40  # vis every N iter
-    prt_freq = 40  # vis every N iter
+    prt_freq = 128  # vis every N iter
     
     # preset
     data = 'voc'
     pretrained_model = 'vgg16'
     
     # training
-    epoch = 21
-    step_epochs = [8, 15]
+    epoch = 9
+    step_epochs = [3, 6]
     step_decays = [0.1, 0.125, 0.15]
     sgd_nestrov = True
-    sgd_momentum = 0.8
+    sgd_momentum = 0.9
     
     use_adam = False  # Use Adam optimizer
     use_chainer = False  # try match everything as chainer

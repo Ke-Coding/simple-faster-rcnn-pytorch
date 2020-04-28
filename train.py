@@ -50,7 +50,7 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
 def eval(dataloader, faster_rcnn):
     pred_bboxes, pred_labels, pred_scores = list(), list(), list()
     gt_bboxes, gt_labels, gt_difficults = list(), list(), list()
-    for it, (imgs, sizes, gt_bboxes_, gt_labels_, gt_difficults_) in enumerate(dataloader):
+    for it, (imgs, sizes, gt_bboxes_, gt_labels_, gt_difficults_) in tqdm(enumerate(dataloader)):
         sizes = [sizes[0][0].item(), sizes[1][0].item()]
         pred_bboxes_, pred_labels_, pred_scores_ = faster_rcnn.predict(imgs, [sizes])
         gt_bboxes.extend(gt_bboxes_.numpy().tolist())
