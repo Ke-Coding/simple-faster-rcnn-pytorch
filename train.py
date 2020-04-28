@@ -94,7 +94,9 @@ def train(**kwargs):
         trainer.vis.text(train_dataset.db.label_names, win='labels')
     
     best_map, best_path = 0, ''
-    losses = []
+    train_losses = []
+    train_lrs = []
+    val_maps = []
     # rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, total_loss
     for epoch in range(Config.epoch):
         trainer.reset_meters()
@@ -102,7 +104,7 @@ def train(**kwargs):
             scale = at.toscalar(scale)
             img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
             # (rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, total_loss)
-            losses.append(trainer.train_step(img, bbox, label, scale))
+            train_losses.append(trainer.train_step(img, bbox, label, scale))
             
             # if (ii + 1) % Config.plt_freq == 0:
             #     # if os.path.exists(Config.debug_file):
@@ -144,11 +146,69 @@ def train(**kwargs):
         if trainer.vis:
             trainer.vis.plot('test_map', eval_result['map'])
         lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']
+        train_lrs.append(lr_)
+        val_maps.append(eval_result['map'])
         log_info = f"[ep{epoch}] best eval map:{best_map:.3g}, lr:{lr_:.4g}, eval map:{eval_result['map']:.3g}, avg tr loss:{trainer.get_meter_data()}"
         if trainer.vis:
             trainer.vis.log(log_info)
         else:
             print(log_info)
+
+    # rpn_loc_loss
+    # rpn_cls_loss
+    # roi_loc_loss
+    # roi_cls_loss
+    # total_loss
+    
+    total_iters = len(train_losses)
+    plt.figure()
+    plt.subplot(2, 4, 1)
+    plt.tight_layout(pad=2.5)
+    plt.plot(list(range(total_iters)), [l.rpn_loc_loss for l in train_losses],
+             label='rpn_loc_loss', c='green')
+    plt.xlabel('iter')
+    plt.ylabel('rpn_loc_loss')
+    plt.legend(loc='lower right')
+
+    plt.subplot(2, 4, 2)
+    plt.tight_layout(pad=2.5)
+    plt.plot(list(range(total_iters)), [l.rpn_cls_loss for l in train_losses],
+             label='rpn_cls_loss', c='steelblue')
+    plt.xlabel('iter')
+    plt.ylabel('rpn_cls_loss')
+    plt.legend(loc='lower right')
+
+    plt.subplot(2, 4, 3)
+    plt.tight_layout(pad=2.5)
+    plt.plot(list(range(total_iters)), [l.roi_loc_loss for l in train_losses],
+             label='roi_loc_loss', c='darkviolet')
+    plt.xlabel('iter')
+    plt.ylabel('roi_loc_loss')
+    plt.legend(loc='lower right')
+
+    plt.subplot(2, 4, 4)
+    plt.tight_layout(pad=2.5)
+    plt.plot(list(range(total_iters)), [l.roi_cls_loss for l in train_losses],
+             label='roi_cls_loss', c='tomato')
+    plt.xlabel('iter')
+    plt.ylabel('roi_cls_loss')
+    plt.legend(loc='lower right')
+
+    plt.subplot(2, 4, 5)
+    plt.tight_layout(pad=2.5)
+    plt.plot(list(range(Config.epoch)), train_lrs,
+             label='train lr', c='blue')
+    plt.xlabel('epoch')
+    plt.ylabel('lr')
+    plt.legend(loc='lower right')
+
+    plt.subplot(2, 4, 6)
+    plt.tight_layout(pad=2.5)
+    plt.plot(list(range(Config.epoch)), val_maps,
+             label='val mAP', c='red')
+    plt.xlabel('epoch')
+    plt.ylabel('val mAP')
+    plt.legend(loc='lower right')
 
 
 train()
