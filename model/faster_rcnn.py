@@ -289,7 +289,13 @@ class FasterRCNN(nn.Module):
             self.optimizer = t.optim.SGD(params, momentum=Config.sgd_momentum, nesterov=Config.sgd_nestrov)
         return self.optimizer
     
-    def scale_lr(self, decay):
+    def lr_add(self, delta):
+        for param_group in self.optimizer.param_groups:
+            # param_group['lr'] is a scalar
+            param_group['lr'] += 2 * delta if abs(param_group['weight_decay']) < 1e-6 else delta
+        return self.optimizer
+    
+    def lr_mul(self, decay):
         for param_group in self.optimizer.param_groups:
             param_group['lr'] *= decay
         return self.optimizer

@@ -179,7 +179,7 @@ class FasterRCNNTrainer(nn.Module):
         self.update_meters(detached_losses)
         return detached_losses
 
-    def save(self, save_optimizer=False, save_path=None, **kwargs):
+    def save(self, mAP, save_optimizer=False, save_path=None, file_name=None):
         """serialize models include optimizer and other info
         return path where the model-file is stored.
 
@@ -195,7 +195,6 @@ class FasterRCNNTrainer(nn.Module):
 
         save_dict['model'] = self.faster_rcnn.state_dict()
         save_dict['config'] = Config._state_dict()
-        save_dict['other_info'] = kwargs
         save_dict['vis_info'] = self.vis.state_dict() if self.vis else {'NOT_USE_VISDOM': 'NOT_USE_VISDOM'}
 
         if save_optimizer:
@@ -204,10 +203,11 @@ class FasterRCNNTrainer(nn.Module):
         if save_path is None:
             assert 'save path is None!'
 
-        file_path = os.path.join(save_path, 'faster-rcnn')
-        for k_, v_ in kwargs.items():
-            file_path += '_%s' % v_
-        file_path += '.pth'
+        if file_name is None:
+            file_name = f'faster-rcnn-mAP-{mAP:.3g}'
+        file_name += '.pth'
+        
+        file_path = os.path.join(save_path, file_name)
         t.save(save_dict, file_path)
         print(f'==> model saved at {file_path}')
         

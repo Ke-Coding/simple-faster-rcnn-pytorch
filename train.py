@@ -1,14 +1,15 @@
 import os
 import time
 os.chdir('/content/drive/My Drive/lq_det_hyper/lq_det')
-
-TIME_STR = time.strftime('%Y-%m-%d-%H:%M:%S')
+TIME_STR = time.strftime('%Y-%m-%d-%H:%M:%S', time.localtime(time.time() + 8 * 60 * 60)) # +8h
 EXP_DIR = os.path.join(os.getcwd(), 'exp', TIME_STR)
 if not os.path.exists(EXP_DIR):
     os.makedirs(EXP_DIR)
 
+
 %reload_ext autoreload
 %autoreload 2
+
 
 import warnings
 warnings.filterwarnings("ignore")   # no warn for torch1.3 about non-static forward
@@ -106,43 +107,54 @@ def train(**kwargs):
     
     log_file = open(os.path.join(EXP_DIR, 'log.txt'), 'w')
 
-    # rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, total_loss
-    time_passed = 0
-    last_t = time.time()
+    warmup_remains = Config.warm_up_iter
     for epoch in range(Config.epoch):
         trainer.reset_meters()
         tot_it = len(train_loader)
         
-        if epoch == 0:
-            eval(val_loader, faster_rcnn)
-        
+        time_passed = 0.
+        last_t = time.time()
+
+        sum_rpn_loc_loss, sum_rpn_cls_loss, sum_roi_loc_loss, sum_roi_cls_loss, sum_it = 0., 0., 0., 0., 0
         for it, (img, bbox_, label_, scale) in enumerate(train_loader):
             scale = at.toscalar(scale)
             img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
             # (rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, total_loss)
             train_loss = trainer.train_step(img, bbox, label, scale)
             train_losses.append(train_loss)
-            
-            # rpn_loc_loss
-            # rpn_cls_loss
-            # roi_loc_loss
-            # roi_cls_loss
+            rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, _ = train_loss
+            sum_rpn_loc_loss += rpn_loc_loss
+            sum_rpn_cls_loss += rpn_cls_loss
+            sum_roi_loc_loss += roi_loc_loss
+            sum_roi_cls_loss += roi_cls_loss
+            sum_it += 1
+
             if it % Config.prt_freq == 0 or it == tot_it - 1:
                 avg_speed = time_passed / it if it != 0 else 0
                 remain_secs = (tot_it - it - 1) * avg_speed + tot_it * (Config.epoch - epoch - 1) * avg_speed
                 remain_time = datetime.timedelta(seconds=round(remain_secs))
-                finish_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() + remain_secs + 8*60*60))   # +8h
+                finish_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() + remain_secs + 8 * 60 * 60))  # +8h
+                
+                lr_ = trainer.faster_rcnn.optimizer.param_groups[0]["lr"]
                 log_str = (
-                    f'ep[{epoch}/{Config.epoch}], it[{it + 1}/{tot_it}]:'
-                    f' loc0[{train_loss.rpn_loc_loss:.4g}],'
-                    f' cls0[{train_loss.rpn_cls_loss:.4g}],'
-                    f' loc1[{train_loss.roi_loc_loss:.4g}],'
-                    f' cls1[{train_loss.roi_cls_loss:.4g}],'
+                    f'ep[{epoch + 1}/{Config.epoch}], it[{it + 1}/{tot_it}]:'
+                    f' loc0[{rpn_loc_loss:.3g}] ({sum_rpn_loc_loss / sum_it:.3g}),'
+                    f' cls0[{rpn_cls_loss:.3g}] ({sum_rpn_cls_loss / sum_it:.3g}),'
+                    f' loc1[{roi_loc_loss:.3g}] ({sum_roi_loc_loss / sum_it:.3g}),'
+                    f' cls1[{roi_cls_loss:.3g}] ({sum_roi_cls_loss / sum_it:.3g}),'
+                    f' lr[{lr_:.4g}],'
                     f' eta[{remain_time}] ({finish_time})'
                 )
+                train_lrs.append(lr_)
                 print(log_str)
                 print(log_str, file=log_file)
-            
+
+                sum_rpn_loc_loss, sum_rpn_cls_loss, sum_roi_loc_loss, sum_roi_cls_loss, sum_it = 0., 0., 0., 0., 0
+
+            warmup_remains -= 1
+            if warmup_remains >= 0:
+                trainer.faster_rcnn.lr_add(Config.warm_up_delta)
+
             # if (it + 1) % Config.plt_freq == 0:
             #     # if os.path.exists(Config.debug_file):
             #     #     ipdb.set_trace()
@@ -169,38 +181,31 @@ def train(**kwargs):
             #     trainer.vis.text(str(trainer.rpn_cm.value().tolist()), win='rpn_cm')
             #     # roi confusion matrix
             #     trainer.vis.img('roi_cm', at.totensor(trainer.roi_cm.conf, False).float())
+            time_passed += time.time() - last_t
+            last_t = time.time()
         
+        print(f'==> [ep{epoch + 1}]: start eval')
         eval_result = eval(val_loader, faster_rcnn)
         if eval_result['map'] > best_map:
             best_map = eval_result['map']
-            best_path = trainer.save(best_mAP=best_map)
+            best_path = trainer.save(mAP=best_map, save_path=EXP_DIR)
         if epoch in Config.step_epochs:
             # trainer.load(best_path)
             lr_decay = Config.step_decays[Config.step_epochs.index(epoch)]
-            trainer.faster_rcnn.scale_lr(lr_decay)
+            trainer.faster_rcnn.lr_mul(lr_decay)
         
         # plot details
         if trainer.vis:
             trainer.vis.plot('test_map', eval_result['map'])
         lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']
-        train_lrs.append(lr_)
         val_maps.append(eval_result['map'])
-        log_info = f"\n ==> [ep{epoch}] best eval map:{best_map:.3g}, lr:{lr_:.4g}, eval map:{eval_result['map']:.3g}, avg tr loss:{trainer.get_meter_data()}\n"
+        log_info = f"\n ==> [ep{epoch + 1}] best eval map:{best_map:.3g}, lr:{lr_:.4g}, eval map:{eval_result['map']:.3g}, avg tr loss:{trainer.get_meter_data()}\n"
         if trainer.vis:
             trainer.vis.log(log_info)
         else:
             print(log_info)
             print(log_info, file=log_file)
-
-        time_passed += time.time() - last_t
-        last_t = time.time()
-
-    # rpn_loc_loss
-    # rpn_cls_loss
-    # roi_loc_loss
-    # roi_cls_loss
-    # total_loss
-
+    
     log_file.close()
     
     total_iters = len(train_losses)
@@ -212,7 +217,7 @@ def train(**kwargs):
     plt.xlabel('iter')
     plt.ylabel('rpn_loc_loss')
     plt.legend(loc='lower right')
-
+    
     plt.subplot(2, 4, 2)
     plt.tight_layout(pad=2.5)
     plt.plot(list(range(total_iters)), [l.rpn_cls_loss for l in train_losses],
@@ -220,7 +225,7 @@ def train(**kwargs):
     plt.xlabel('iter')
     plt.ylabel('rpn_cls_loss')
     plt.legend(loc='lower right')
-
+    
     plt.subplot(2, 4, 3)
     plt.tight_layout(pad=2.5)
     plt.plot(list(range(total_iters)), [l.roi_loc_loss for l in train_losses],
@@ -228,7 +233,7 @@ def train(**kwargs):
     plt.xlabel('iter')
     plt.ylabel('roi_loc_loss')
     plt.legend(loc='lower right')
-
+    
     plt.subplot(2, 4, 4)
     plt.tight_layout(pad=2.5)
     plt.plot(list(range(total_iters)), [l.roi_cls_loss for l in train_losses],
@@ -236,18 +241,18 @@ def train(**kwargs):
     plt.xlabel('iter')
     plt.ylabel('roi_cls_loss')
     plt.legend(loc='lower right')
-
+    
     plt.subplot(2, 4, 5)
     plt.tight_layout(pad=2.5)
-    plt.plot(list(range(Config.epoch)), train_lrs,
+    plt.plot(list(range(len(train_lrs))), train_lrs,
              label='train lr', c='blue')
-    plt.xlabel('epoch')
+    plt.xlabel('k print_freq')
     plt.ylabel('lr')
     plt.legend(loc='lower right')
-
+    
     plt.subplot(2, 4, 6)
     plt.tight_layout(pad=2.5)
-    plt.plot(list(range(Config.epoch)), val_maps,
+    plt.plot(list(range(len(val_maps))), val_maps,
              label='val mAP', c='red')
     plt.xlabel('epoch')
     plt.ylabel('val mAP')
@@ -255,7 +260,6 @@ def train(**kwargs):
 
 
 train()
-
 
 import matplotlib.pyplot as plt
 plt.show()
