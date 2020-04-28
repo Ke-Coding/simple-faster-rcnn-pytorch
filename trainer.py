@@ -207,7 +207,9 @@ class FasterRCNNTrainer(nn.Module):
         file_path = os.path.join(save_path, 'faster-rcnn')
         for k_, v_ in kwargs.items():
             file_path += '_%s' % v_
+        file_path += '.pth'
         t.save(save_dict, file_path)
+        print(f'==> model saved at {file_path}')
         
         if self.vis:
             self.vis.save([self.vis.env])

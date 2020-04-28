@@ -112,6 +112,10 @@ def train(**kwargs):
     for epoch in range(Config.epoch):
         trainer.reset_meters()
         tot_it = len(train_loader)
+        
+        if epoch == 0:
+            eval(val_loader, faster_rcnn)
+        
         for it, (img, bbox_, label_, scale) in enumerate(train_loader):
             scale = at.toscalar(scale)
             img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
@@ -127,7 +131,7 @@ def train(**kwargs):
                 avg_speed = time_passed / it if it != 0 else 0
                 remain_secs = (tot_it - it - 1) * avg_speed + tot_it * (Config.epoch - epoch - 1) * avg_speed
                 remain_time = datetime.timedelta(seconds=round(remain_secs))
-                finish_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() + remain_secs))
+                finish_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() + remain_secs + 8*60*60))   # +8h
                 log_str = (
                     f'ep[{epoch}/{Config.epoch}], it[{it + 1}/{tot_it}]:'
                     f' loc0[{train_loss.rpn_loc_loss:.4g}],'
@@ -188,7 +192,7 @@ def train(**kwargs):
             print(log_info)
             print(log_info, file=log_file)
 
-        time_passed += last_t - time.time()
+        time_passed += time.time() - last_t
         last_t = time.time()
 
     # rpn_loc_loss
