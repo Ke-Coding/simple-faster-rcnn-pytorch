@@ -250,6 +250,6 @@ def plt_curve(pair_lists, label_names, y_names, c):
         plt.ylabel(y_name)
         plt.legend(loc='best')
 
-plt.figure(figsize=(fig_cnt, 8*fig_cnt), dpi=300)
+plt.figure(figsize=(8, 8*fig_cnt), dpi=300)
 [plt_curve(pair_lists, label_names, y_names, c) for pair_lists, label_names, y_names, c in plt_params]
 plt.show()
