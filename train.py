@@ -128,10 +128,10 @@ for epoch in range(Config.epoch):
         img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
         train_loss = trainer.train_step(img, bbox, label, scale)
         p_loc_loss, p_cls_loss, b_loc_loss, b_cls_loss, tot_loss = train_loss
-        sum_p_loc_loss += p_loc_losses
-        sum_p_cls_loss += p_cls_losses
-        sum_b_loc_loss += b_loc_losses
-        sum_b_cls_loss += b_cls_losses
+        sum_p_loc_loss += p_loc_loss
+        sum_p_cls_loss += p_cls_loss
+        sum_b_loc_loss += b_loc_loss
+        sum_b_cls_loss += b_cls_loss
         sum_tot_loss += tot_loss
         sum_it += 1
 
