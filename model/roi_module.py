@@ -27,25 +27,25 @@ def GET_BLOCKS(N, K=CUDA_NUM_THREADS):
 
 
 class RoI(Function):
+    rois, outh, outw, spatial_scale, forward_fn, backward_fn = None, None, None, None, None, None
     
     @staticmethod
-    def forward(ctx, *inputs):
+    def forward(ctx, x):
         # NOTE: MAKE SURE input is contiguous too
-        x, ctx.rois, ctx.outh, ctx.outw, ctx.spatial_scale, ctx.forward_fn, ctx.backward_fn = inputs
         x = x.contiguous()
         ctx.rois = ctx.rois.contiguous()
         ctx.in_size = B, C, H, W = x.size()
         ctx.N = N = ctx.rois.size(0)
-        output = t.zeros(N, C, ctx.outh, ctx.outw).cuda()
-        ctx.argmax_data = t.zeros(N, C, ctx.outh, ctx.outw).int().cuda()
+        output = t.zeros(N, C, RoI.outh, RoI.outw).cuda()
+        ctx.argmax_data = t.zeros(N, C, RoI.outh, RoI.outw).int().cuda()
         args = [x.data_ptr(), ctx.rois.data_ptr(),
                 output.data_ptr(),
                 ctx.argmax_data.data_ptr(),
-                ctx.spatial_scale, C, H, W,
-                ctx.outh, ctx.outw,
+                RoI.spatial_scale, C, H, W,
+                RoI.outh, RoI.outw,
                 output.numel()]
         stream = Stream(ptr=torch.cuda.current_stream().cuda_stream)
-        ctx.forward_fn(args=args,
+        RoI.forward_fn(args=args,
                         block=(CUDA_NUM_THREADS, 1, 1),
                         grid=(GET_BLOCKS(output.numel()), 1, 1),
                         stream=stream)
@@ -63,9 +63,9 @@ class RoI(Function):
                 ctx.argmax_data.data_ptr(),
                 ctx.rois.data_ptr(),
                 grad_input.data_ptr(),
-                ctx.N, ctx.spatial_scale, C, H, W, ctx.outh, ctx.outw,
+                ctx.N, RoI.spatial_scale, C, H, W, RoI.outh, RoI.outw,
                 grad_input.numel()]
-        ctx.backward_fn(args=args,
+        RoI.backward_fn(args=args,
                          block=(CUDA_NUM_THREADS, 1, 1),
                          grid=(GET_BLOCKS(grad_input.numel()), 1, 1),
                          stream=stream
@@ -83,7 +83,10 @@ class RoIPooling2D(t.nn.Module):
         self.RoI = RoI# (outh, outw, spatial_scale)
     
     def forward(self, x, rois):
-        return self.RoI.apply(x, rois, self.outh, self.outw, self.spatial_scale, self.forward_fn, self.backward_fn)
+        self.RoI.rois, self.RoI.outh, self.RoI.outw, self.RoI.spatial_scale, self.RoI.forward_fn, self.RoI.backward_fn = (
+            rois, self.outh, self.outw, self.spatial_scale, self.forward_fn, self.backward_fn
+        )
+        return self.RoI.apply(x)
 
 
 def test_roi_module():
