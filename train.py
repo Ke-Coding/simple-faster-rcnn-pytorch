@@ -69,7 +69,7 @@ def eval(dataloader, faster_rcnn):
     return result
 
 
-# Config._parse(kwargs)
+Config._parse({})
 
 train_dataset = TrainDataset(Config)
 train_loader = data_.DataLoader(

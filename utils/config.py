@@ -41,9 +41,9 @@ class Config:
     pretrained_model = 'vgg16'
     
     # training
-    epoch = 10
-    step_epochs = [3, 6]    # 0123 456 789
-    step_decays = [0.1, 0.15, 0.2]
+    epoch = 7
+    step_epochs = [2, 4]    # 012 34 56
+    step_decays = [0.2, 0.2, 0.3]
     sgd_nestrov = True
     sgd_momentum = 0.9
     
@@ -61,6 +61,7 @@ class Config:
     caffe_vgg_path = None
     # caffe_vgg_path = '/content/drive/My Drive/lq_det_hyper/lq_det/ckpt/vgg16_caffe.pth'
     torchvision_vgg_path = '/content/drive/My Drive/lq_det_hyper/lq_det/ckpt/vgg16_torchvision.pth'
+    # torchvision: vgg16-397923af.pth
     
     @classmethod
     def _parse(cls, kwargs):
