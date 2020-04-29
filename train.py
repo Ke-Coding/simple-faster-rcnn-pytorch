@@ -103,7 +103,11 @@ if trainer.vis:
 
 
 best_map, best_path = 0, ''
-train_losses = []
+p_loc_losses = []
+p_cls_losses = []
+b_loc_losses = []
+b_cls_losses = []
+tot_losses = []
 train_lrs = []
 val_maps = []
 
@@ -117,18 +121,18 @@ for epoch in range(Config.epoch):
     time_passed = 0.
     last_t = time.time()
 
-    sum_rpn_loc_loss, sum_rpn_cls_loss, sum_roi_loc_loss, sum_roi_cls_loss, sum_it = 0., 0., 0., 0., 0
+    global_it = 0
+    sum_p_loc_loss, sum_p_cls_loss, sum_b_loc_loss, sum_b_cls_loss, sum_tot_loss, sum_it = 0., 0., 0., 0., 0., 0
     for it, (img, bbox_, label_, scale) in enumerate(train_loader):
         scale = at.toscalar(scale)
         img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
-        # (rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, total_loss)
         train_loss = trainer.train_step(img, bbox, label, scale)
-        train_losses.append(train_loss)
-        rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, _ = train_loss
-        sum_rpn_loc_loss += rpn_loc_loss
-        sum_rpn_cls_loss += rpn_cls_loss
-        sum_roi_loc_loss += roi_loc_loss
-        sum_roi_cls_loss += roi_cls_loss
+        p_loc_loss, p_cls_loss, b_loc_loss, b_cls_loss, tot_loss = train_loss
+        sum_p_loc_loss += p_loc_losses
+        sum_p_cls_loss += p_cls_losses
+        sum_b_loc_loss += b_loc_losses
+        sum_b_cls_loss += b_cls_losses
+        sum_tot_loss += tot_loss
         sum_it += 1
 
         if it % Config.prt_freq == 0 or it == tot_it - 1:
@@ -140,22 +144,31 @@ for epoch in range(Config.epoch):
             lr_ = trainer.faster_rcnn.optimizer.param_groups[0]["lr"]
             log_str = (
                 f'ep[{epoch + 1}/{Config.epoch}], it[{it + 1}/{tot_it}]:'
-                f' loc0[{rpn_loc_loss:.3g}] ({sum_rpn_loc_loss / sum_it:.3g}),'
-                f' cls0[{rpn_cls_loss:.3g}] ({sum_rpn_cls_loss / sum_it:.3g}),'
-                f' loc1[{roi_loc_loss:.3g}] ({sum_roi_loc_loss / sum_it:.3g}),'
-                f' cls1[{roi_cls_loss:.3g}] ({sum_roi_cls_loss / sum_it:.3g}),'
+                f' loc0[{p_loc_loss:.3g}] ({sum_p_loc_loss / sum_it:.3g}),'
+                f' cls0[{p_cls_loss:.3g}] ({sum_p_cls_loss / sum_it:.3g}),'
+                f' loc1[{b_loc_loss:.3g}] ({sum_b_loc_loss / sum_it:.3g}),'
+                f' cls1[{b_cls_loss:.3g}] ({sum_b_cls_loss / sum_it:.3g}),'
+                f' tot[{tot_loss:.3g}] ({sum_tot_loss / sum_it:.3g}),'
                 f' lr[{lr_:.4g}],'
                 f' eta[{remain_time}] ({finish_time})'
             )
-            train_lrs.append(lr_)
             print(log_str)
             print(log_str, file=log_file)
 
-            sum_rpn_loc_loss, sum_rpn_cls_loss, sum_roi_loc_loss, sum_roi_cls_loss, sum_it = 0., 0., 0., 0., 0
+            train_lrs.append((global_it, lr_))
+            p_loc_losses.append((global_it, sum_p_loc_loss / sum_it))
+            p_cls_losses.append((global_it, sum_p_cls_loss / sum_it))
+            b_loc_losses.append((global_it, sum_b_loc_loss / sum_it))
+            b_cls_losses.append((global_it, sum_b_cls_loss / sum_it))
+            tot_losses.append((global_it, sum_tot_loss / sum_it))
+
+            sum_p_loc_loss, sum_p_cls_loss, sum_b_loc_loss, sum_b_cls_loss, sum_tot_loss, sum_it = 0., 0., 0., 0., 0., 0
 
         warmup_remains -= 1
         if warmup_remains >= 0:
             trainer.faster_rcnn.lr_add(Config.warm_up_delta)
+            lr_ = trainer.faster_rcnn.optimizer.param_groups[0]["lr"]
+            train_lrs.append((global_it, lr_))
 
         # if (it + 1) % Config.plt_freq == 0:
         #     # if os.path.exists(Config.debug_file):
@@ -183,6 +196,7 @@ for epoch in range(Config.epoch):
         #     trainer.vis.text(str(trainer.rpn_cm.value().tolist()), win='rpn_cm')
         #     # roi confusion matrix
         #     trainer.vis.img('roi_cm', at.totensor(trainer.roi_cm.conf, False).float())
+        global_it += 1
         time_passed += time.time() - last_t
         last_t = time.time()
     
@@ -200,7 +214,7 @@ for epoch in range(Config.epoch):
     if trainer.vis:
         trainer.vis.plot('test_map', eval_result['map'])
     lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']
-    val_maps.append(eval_result['map'])
+    val_maps.append((global_it, eval_result['map']))
     log_info = f"\n ==> [ep{epoch + 1}] best eval map:{best_map:.3g}, lr:{lr_:.4g}, eval map:{eval_result['map']:.3g}, avg tr loss:{trainer.get_meter_data()}\n"
     if trainer.vis:
         trainer.vis.log(log_info)
@@ -208,61 +222,34 @@ for epoch in range(Config.epoch):
         print(log_info)
         print(log_info, file=log_file)
 
-
-
+train_lrs = list(set(train_lrs))
 log_file.close()
 
 
 
-total_iters = len(train_losses)
-plt.figure()
-plt.subplot(2, 4, 1)
-plt.tight_layout(pad=2.5)
-plt.plot(list(range(total_iters)), [l.rpn_loc_loss for l in train_losses],
-         label='rpn_loc_loss', c='green')
-plt.xlabel('iter')
-plt.ylabel('rpn_loc_loss')
-plt.legend(loc='lower right')
+plt_params = [
+    ([p_loc_losses, p_cls_losses], ['loc0', 'cls0'], ['loss', 'loss'], ['green', 'blue']),
+    ([b_loc_losses, b_cls_losses], ['loc1', 'cls1'], ['loss', 'loss'], ['steelblue', 'darkviolet']),
+    ([tot_losses], ['tot'], ['loss'], ['blue']),
+    ([train_lrs], ['lr'], ['lr'], ['tomato']),
+    ([val_maps], ['mAP'], ['mAP'], ['red']),
+]
 
-plt.subplot(2, 4, 2)
-plt.tight_layout(pad=2.5)
-plt.plot(list(range(total_iters)), [l.rpn_cls_loss for l in train_losses],
-         label='rpn_cls_loss', c='steelblue')
-plt.xlabel('iter')
-plt.ylabel('rpn_cls_loss')
-plt.legend(loc='lower right')
+fig_cnt = sum([len(tu[0]) for tu in plt_params])
+fig_cur = 0
 
-plt.subplot(2, 4, 3)
-plt.tight_layout(pad=2.5)
-plt.plot(list(range(total_iters)), [l.roi_loc_loss for l in train_losses],
-         label='roi_loc_loss', c='darkviolet')
-plt.xlabel('iter')
-plt.ylabel('roi_loc_loss')
-plt.legend(loc='lower right')
+def plt_curve(pair_lists, label_names, y_names, c):
+    global fig_cur
+    for pair_list, label_name, y_name in zip(pair_lists, label_names, y_names):
+        fig_cur += 1
+        plt.subplot(fig_cnt, 1, fig_cur)
+        # plt.tight_layout(pad=2.5)
+        iters, data = zip(*pair_list)
+        plt.plot(iters, data, label=label_name, c=c)
+        plt.xlabel('iter')
+        plt.ylabel(y_name)
+        plt.legend(loc='best')
 
-plt.subplot(2, 4, 4)
-plt.tight_layout(pad=2.5)
-plt.plot(list(range(total_iters)), [l.roi_cls_loss for l in train_losses],
-         label='roi_cls_loss', c='tomato')
-plt.xlabel('iter')
-plt.ylabel('roi_cls_loss')
-plt.legend(loc='lower right')
-
-plt.subplot(2, 4, 5)
-plt.tight_layout(pad=2.5)
-plt.plot(list(range(len(train_lrs))), train_lrs,
-         label='train lr', c='blue')
-plt.xlabel('k print_freq')
-plt.ylabel('lr')
-plt.legend(loc='lower right')
-
-plt.subplot(2, 4, 6)
-plt.tight_layout(pad=2.5)
-plt.plot(list(range(len(val_maps))), val_maps,
-         label='val mAP', c='red')
-plt.xlabel('epoch')
-plt.ylabel('val mAP')
-plt.legend(loc='lower right')
-
-
+plt.figure(figsize=(fig_cnt, 8*fig_cnt), dpi=300)
+[plt_curve(pair_lists, label_names, y_names, c) for pair_lists, label_names, y_names, c in plt_params]
 plt.show()
