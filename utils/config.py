@@ -29,6 +29,17 @@ class Config:
     lr = warm_up_lr / 4
     warm_up_iter = 350
     warm_up_delta = (warm_up_lr - lr) / warm_up_iter
+
+    # optm
+    epoch = 7
+    step_epochs = [2, 4]  # 012 34 56
+    step_decays = [0.1, 0.1]
+    sgd_nestrov = True
+    sgd_momentum = 0.9
+
+    use_adam = False  # Use Adam optimizer
+    use_chainer = False  # try match everything as chainer
+    use_drop = False  # use dropout in RoIHead
     
     # visualization
     env = 'faster-rcnn'  # visdom env
@@ -36,16 +47,6 @@ class Config:
     plt_freq = 40  # vis every N iter
     prt_freq = 128  # vis every N iter
     
-    # training
-    epoch = 7
-    step_epochs = [2, 4]    # 012 34 56
-    step_decays = [0.1, 0.1]
-    sgd_nestrov = True
-    sgd_momentum = 0.9
-    
-    use_adam = False  # Use Adam optimizer
-    use_chainer = False  # try match everything as chainer
-    use_drop = False  # use dropout in RoIHead
     # debug
     debug_file = '/tmp/debugf'
     
