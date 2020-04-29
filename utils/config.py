@@ -37,7 +37,6 @@ class Config:
     prt_freq = 128  # vis every N iter
     
     # preset
-    data = 'voc'
     pretrained_model = 'vgg16'
     
     # training
