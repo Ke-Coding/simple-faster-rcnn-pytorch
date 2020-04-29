@@ -14,7 +14,7 @@ def decom_vgg16():
     
     if Config.frc_ckpt_path:
         model = vgg16(pretrained=False)
-        print(f'the whole frc ckpt will be loaded soon from {Config.caffe_vgg_path}...')
+        print(f'the whole frc ckpt will be loaded soon from {Config.frc_ckpt_path}...')
     elif Config.caffe_vgg:
         if Config.caffe_vgg_path:
             model = vgg16(pretrained=False)
