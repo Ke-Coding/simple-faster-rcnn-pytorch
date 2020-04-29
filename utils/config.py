@@ -25,7 +25,7 @@ class Config:
     # 0.0005 in origin paper but 0.0001 in tf-faster-rcnn
     weight_decay = 0.0005
     # lr_decay = 0.1  # 1e-3 -> 1e-4
-    warm_up_lr = 7.5e-4
+    warm_up_lr = 0.001
     lr = warm_up_lr / 4
     warm_up_iter = 350
     warm_up_delta = (warm_up_lr - lr) / warm_up_iter
@@ -43,7 +43,7 @@ class Config:
     # training
     epoch = 7
     step_epochs = [2, 4]    # 012 34 56
-    step_decays = [0.2, 0.2, 0.3]
+    step_decays = [0.1, 0.1]
     sgd_nestrov = True
     sgd_momentum = 0.9
     

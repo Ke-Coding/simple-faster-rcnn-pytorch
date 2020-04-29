@@ -143,13 +143,13 @@ for epoch in range(Config.epoch):
             
             lr_ = trainer.faster_rcnn.optimizer.param_groups[0]["lr"]
             log_str = (
-                f'ep[{epoch + 1}/{Config.epoch}], it[{it + 1}/{tot_it}]:'
-                f' loc0[{p_loc_loss:.3g}] ({sum_p_loc_loss / sum_it:.3g}),'
-                f' cls0[{p_cls_loss:.3g}] ({sum_p_cls_loss / sum_it:.3g}),'
-                f' loc1[{b_loc_loss:.3g}] ({sum_b_loc_loss / sum_it:.3g}),'
-                f' cls1[{b_cls_loss:.3g}] ({sum_b_cls_loss / sum_it:.3g}),'
-                f' tot[{tot_loss:.3g}] ({sum_tot_loss / sum_it:.3g}),'
-                f' lr[{lr_:.4g}],'
+                f'ep[{epoch+1}/{Config.epoch}], it[{it+1:4d}/{tot_it}]:'
+                f' loc0[{p_loc_loss:6.5f}] ({sum_p_loc_loss / sum_it:6.5f}),'
+                f' cls0[{p_cls_loss:6.5f}] ({sum_p_cls_loss / sum_it:6.5f}),'
+                f' loc1[{b_loc_loss:5.4f}] ({sum_b_loc_loss / sum_it:5.4f}),'
+                f' cls1[{b_cls_loss:5.4f}] ({sum_b_cls_loss / sum_it:5.4f}),'
+                f' tot[{tot_loss:.3g}] ({sum_tot_loss / sum_it:5.4f}),'
+                f' lr[{lr_:6.5f}],'
                 f' eta[{remain_time}] ({finish_time})'
             )
             print(log_str)
