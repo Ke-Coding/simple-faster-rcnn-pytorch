@@ -33,7 +33,7 @@ class RoI(Function):
     def forward(ctx, x):
         # NOTE: MAKE SURE input is contiguous too
         x = x.contiguous()
-        ctx.rois = ctx.rois.contiguous()
+        ctx.rois = RoI.rois.contiguous()
         ctx.in_size = B, C, H, W = x.size()
         ctx.N = N = ctx.rois.size(0)
         output = t.zeros(N, C, RoI.outh, RoI.outw).cuda()
