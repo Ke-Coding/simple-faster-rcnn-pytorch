@@ -36,9 +36,6 @@ class Config:
     plt_freq = 40  # vis every N iter
     prt_freq = 128  # vis every N iter
     
-    # preset
-    pretrained_model = 'vgg16'
-    
     # training
     epoch = 7
     step_epochs = [2, 4]    # 012 34 56
