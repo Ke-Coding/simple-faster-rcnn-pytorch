@@ -61,8 +61,8 @@ class Config:
     # torchvision: vgg16-397923af.pth
     
     @classmethod
-    def __str__(cls):
-        return f'========== config ==========\n{pformat(Config._state_dict())}=========== end =============\n'
+    def get_info(cls):
+        return f'========== config ==========\n{pformat(cls._state_dict())}=========== end =============\n'
     
     @classmethod
     def _parse(cls, kwargs):
@@ -71,7 +71,7 @@ class Config:
             if k not in state_dict:
                 raise ValueError('UnKnown Option: "--%s"' % k)
             setattr(cls, k, v)
-        print(cls)
+        print(cls.get_info())
     
     @classmethod
     def _state_dict(cls):

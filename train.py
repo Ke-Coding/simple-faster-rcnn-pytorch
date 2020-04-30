@@ -71,8 +71,8 @@ def eval(dataloader, faster_rcnn):
     return result
 
 
-print(Config)
-print(Config, file=log_file)
+print(Config.get_info())
+print(Config.get_info(), file=log_file)
 
 
 train_dataset = TrainDataset(Config)
