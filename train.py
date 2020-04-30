@@ -5,6 +5,7 @@ TIME_STR = time.strftime('%Y-%m-%d-%H:%M:%S', time.localtime(time.time() + 8 * 6
 EXP_DIR = os.path.join(os.getcwd(), 'exp', TIME_STR)
 if not os.path.exists(EXP_DIR):
     os.makedirs(EXP_DIR)
+log_file = open(os.path.join(EXP_DIR, 'log.txt'), 'w')
 
 
 %reload_ext autoreload
@@ -27,6 +28,7 @@ from tqdm import tqdm
 import torch as tc
 import datetime
 from utils.config import Config
+Config.EXP_DIR = EXP_DIR
 from data.dataset import TrainDataset, ValDataset, inverse_normalize
 from model import FasterRCNNVGG16
 from torch.utils import data as data_
@@ -69,7 +71,9 @@ def eval(dataloader, faster_rcnn):
     return result
 
 
-Config._parse({})
+print(Config)
+print(Config, file=log_file)
+
 
 train_dataset = TrainDataset(Config)
 train_loader = data_.DataLoader(
@@ -111,9 +115,9 @@ tot_losses = []
 train_lrs = []
 val_maps = []
 
-log_file = open(os.path.join(EXP_DIR, 'log.txt'), 'w')
 
 warmup_remains = Config.warm_up_iter
+global_it = 0
 for epoch in range(Config.epoch):
     trainer.reset_meters()
     tot_it = len(train_loader)
@@ -121,7 +125,6 @@ for epoch in range(Config.epoch):
     time_passed = 0.
     last_t = time.time()
 
-    global_it = 0
     sum_p_loc_loss, sum_p_cls_loss, sum_b_loc_loss, sum_b_cls_loss, sum_tot_loss, sum_it = 0., 0., 0., 0., 0., 0
     for it, (img, bbox_, label_, scale) in enumerate(train_loader):
         scale = at.toscalar(scale)
@@ -204,7 +207,7 @@ for epoch in range(Config.epoch):
     eval_result = eval(val_loader, faster_rcnn)
     if eval_result['map'] >= best_map:
         best_map = eval_result['map']
-    newist_path = trainer.save(mAP=eval_result['map'], save_path=EXP_DIR, file_name=f'FRC-ep{epoch}')
+    newist_path = trainer.save(mAP=eval_result['map'], save_path=EXP_DIR, file_name=f'FRC-newist')
     if epoch in Config.step_epochs:
         # trainer.load(best_path)
         lr_decay = Config.step_decays[Config.step_epochs.index(epoch)]
@@ -222,9 +225,8 @@ for epoch in range(Config.epoch):
         print(log_info)
         print(log_info, file=log_file)
 
-train_lrs = list(set(train_lrs))
-log_file.close()
 
+log_file.close()
 
 
 plt_params = [
@@ -235,21 +237,27 @@ plt_params = [
     ([val_maps], ['mAP'], ['mAP'], ['red']),
 ]
 
-fig_cnt = sum([len(tu[0]) for tu in plt_params])
+fig_cnt = len(plt_params)
 fig_cur = 0
+import json
 
-def plt_curve(pair_lists, label_names, y_names, c):
+def plt_curve(pair_lists, label_names, y_names, colors):
     global fig_cur
-    for pair_list, label_name, y_name in zip(pair_lists, label_names, y_names):
-        fig_cur += 1
+    fig_cur += 1
+    for pair_list, label_name, y_name, c in zip(pair_lists, label_names, y_names, colors):
+
+        with open(os.path.join(EXP_DIR, f'{label_name}.json'), 'w') as fp:
+            json.dump(pair_list, fp, indent=2)
         plt.subplot(fig_cnt, 1, fig_cur)
-        # plt.tight_layout(pad=2.5)
+        plt.tight_layout(pad=1.15)
+        if label_name[-1] not in ['0', '1']:
+            pair_list = pair_list[4:]
         iters, data = zip(*pair_list)
         plt.plot(iters, data, label=label_name, c=c)
         plt.xlabel('iter')
         plt.ylabel(y_name)
         plt.legend(loc='best')
 
-plt.figure(figsize=(8, 8*fig_cnt), dpi=300)
+plt.figure(figsize=(4, 4*fig_cnt), dpi=300)
 [plt_curve(pair_lists, label_names, y_names, c) for pair_lists, label_names, y_names, c in plt_params]
 plt.show()

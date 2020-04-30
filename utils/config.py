@@ -1,4 +1,4 @@
-from pprint import pprint
+from pprint import pprint, pformat
 
 
 # Default Configs for training
@@ -61,16 +61,17 @@ class Config:
     # torchvision: vgg16-397923af.pth
     
     @classmethod
+    def __str__(cls):
+        return f'========== config ==========\n{pformat(Config._state_dict())}=========== end =============\n'
+    
+    @classmethod
     def _parse(cls, kwargs):
         state_dict = cls._state_dict()
         for k, v in kwargs.items():
             if k not in state_dict:
                 raise ValueError('UnKnown Option: "--%s"' % k)
             setattr(cls, k, v)
-        
-        print('======user config========')
-        pprint(cls._state_dict())
-        print('==========end============')
+        print(cls)
     
     @classmethod
     def _state_dict(cls):
