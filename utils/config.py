@@ -23,7 +23,7 @@ class Config:
     
     # param for optimizer
     # 0.0005 in origin paper but 0.0001 in tf-faster-rcnn
-    weight_decay = 0.0005
+    weight_decay = 0.0001
     # lr_decay = 0.1  # 1e-3 -> 1e-4
     warm_up_lr = 0.0004
     lr = warm_up_lr / 4
